@@ -120,7 +120,7 @@ export default function Overview() {
                         <div className="flex justify-between"><dt className="text-slate-500">Cursor</dt><dd className="tabular-nums">{cursor}</dd></div>
                         <div className="flex justify-between"><dt className="text-slate-500">Rows ingested</dt><dd className="tabular-nums">{rowsIngested.toLocaleString()}</dd></div>
                         <div className="flex justify-between"><dt className="text-slate-500">Last run</dt><dd>{fmtDate(lastRun)}</dd></div>
-                        <div className="flex justify-between"><dt className="text-slate-500">Schedule</dt><dd>pseudo-cron (100 row/jam)</dd></div>
+                        <div className="flex justify-between"><dt className="text-slate-500">Schedule</dt><dd>pseudo-cron (1000 row/jam)</dd></div>
                     </dl>
                     <div className="mt-3 h-2 rounded bg-slate-200 dark:bg-slate-800">
                         <div className="h-2 rounded bg-emerald-500" style={{ width: `${progress}%` }} />
