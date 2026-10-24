@@ -53,12 +53,12 @@ export default function Overview() {
         { name: 'Flagged', value: flagged },
         { name: 'Legit', value: Math.max(0, total - flagged) },
     ];
-    const progress = streamTotal > 0 ? Math.min(100, (cursor / streamTotal) * 100) : 0;
+    const progress = streamTotal > 0 ? Math.min(100, ((total || rowsIngested) / streamTotal) * 100) : 0;
 
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <Kpi label="Ingested" value={total.toLocaleString()} sub={`cursor ${cursor}`} />
+                <Kpi label="Ingested" value={total.toLocaleString()} sub={`batch ${cursor}`} />
                 <Kpi label="Flagged fraud" value={flagged.toLocaleString()} tone="danger"
                     sub={`rate ${fmtPct(total ? flagged / total : null, 2)}`} />
                 <Kpi label="Live precision" value={fmtPct(precision)} sub="on labeled rows" />

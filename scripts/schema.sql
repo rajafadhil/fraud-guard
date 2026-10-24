@@ -22,8 +22,10 @@ create index on transactions (flagged) where flagged;
 create table if not exists ingest_state (
   id            int primary key default 1,
   cursor        int not null default 0,
+  stream_start  timestamptz,
   last_run      timestamptz,
   rows_ingested bigint not null default 0,
+  is_done       boolean not null default false,
   constraint single_row check (id = 1)
 );
 insert into ingest_state (id) values (1) on conflict do nothing;

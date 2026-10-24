@@ -86,6 +86,7 @@ export default async function handler(req, res) {
             cursor: state?.cursor ?? 0,
             rows_ingested: state?.rows_ingested ?? 0,
             last_run: state?.last_run ?? null,
+            is_done: Boolean(state?.is_done),
             // TOTAL STREAM STATIS (dari EDA notebook: 283,726 row)
             stream_total: parseInt(process.env.STREAM_TOTAL || '283726', 10),
             threshold: DEFAULT_THRESHOLD,
