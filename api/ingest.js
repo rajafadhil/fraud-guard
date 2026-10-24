@@ -1,20 +1,62 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { sb, dbGuard, predictProba, send, modelReady, DEFAULT_THRESHOLD } from './_lib.js';
 
 const CHUNK_SIZE    = 1000;  // isi 1 file chunk_XXXX.json
 const ROWS_PER_HOUR = 1000;  // kecepatan stream: 1000 row/jam
 const HOUR_MS       = 3600_000;
 
-async function fetchChunk(base, chunkIdx, cache) {
+async function fetchChunk(base, chunkIdx, cache, reqHeaders = {}) {
   if (cache.c === chunkIdx) return cache.rows;
-  const r = await fetch(`${base}/stream/chunk_${String(chunkIdx).padStart(4, '0')}.json`);
-  if (!r.ok) return null;
-  const data = await r.json();
-  cache.c = chunkIdx;
-  cache.rows = data.rows || [];
-  return cache.rows;
+
+  const fileName = `chunk_${String(chunkIdx).padStart(4, '0')}.json`;
+
+  // 1. Coba baca langsung dari filesystem lokal (sangat cepat, 0 network, kebal SSO Vercel)
+  try {
+    const localPath = path.join(process.cwd(), 'public', 'stream', fileName);
+    if (fs.existsSync(localPath)) {
+      const raw = fs.readFileSync(localPath, 'utf-8');
+      const data = JSON.parse(raw);
+      cache.c = chunkIdx;
+      cache.rows = data.rows || [];
+      return cache.rows;
+    }
+  } catch {
+    // Lanjut ke fallback fetch jika filesystem tidak tersedia
+  }
+
+  // 2. Fallback via HTTP fetch
+  try {
+    const headers = {};
+    if (reqHeaders.cookie) headers.cookie = reqHeaders.cookie;
+    if (reqHeaders['x-vercel-protection-bypass']) {
+      headers['x-vercel-protection-bypass'] = reqHeaders['x-vercel-protection-bypass'];
+    }
+
+    const url = `${base}/stream/${fileName}`;
+    const r = await fetch(url, { headers });
+    if (!r.ok) {
+      console.warn(`[ingest] fetch ${url} returned HTTP ${r.status}`);
+      return null;
+    }
+
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      console.error(`[ingest] fetch ${url} expected JSON but got ${contentType} (mungkin redirect ke SSO/login)`);
+      return null;
+    }
+
+    const data = await r.json();
+    cache.c = chunkIdx;
+    cache.rows = data.rows || [];
+    return cache.rows;
+  } catch (err) {
+    console.error(`[ingest] error fetching ${fileName}:`, err?.message || err);
+    return null;
+  }
 }
 
-async function getRowsForBatch(base, batchIdx, rowsPerBatch, chunkSize, cache) {
+async function getRowsForBatch(base, batchIdx, rowsPerBatch, chunkSize, cache, reqHeaders = {}) {
   const startIdx = batchIdx * rowsPerBatch;
   const targetIdx = startIdx + rowsPerBatch;
   let currIdx = startIdx;
@@ -23,7 +65,7 @@ async function getRowsForBatch(base, batchIdx, rowsPerBatch, chunkSize, cache) {
   while (currIdx < targetIdx) {
     const c = Math.floor(currIdx / chunkSize);
     const off = currIdx % chunkSize;
-    const chunkRows = await fetchChunk(base, c, cache);
+    const chunkRows = await fetchChunk(base, c, cache, reqHeaders);
     if (!chunkRows || chunkRows.length === 0 || off >= chunkRows.length) {
       break;
     }
@@ -59,7 +101,11 @@ export default async function handler(req, res) {
   const due = Math.min(Math.max(0, dueTotal - cursor), MAX_CATCHUP);
   if (due === 0) return send(res, { ok: true, ingested: 0, cursor, due_total: dueTotal });
 
+  const reqHost = req?.headers?.['x-forwarded-host'] || req?.headers?.host;
+  const proto = req?.headers?.['x-forwarded-proto'] || (reqHost?.includes('localhost') ? 'http' : 'https');
   const base = process.env.STREAM_BASE_URL
+    || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null)
+    || (reqHost && !reqHost.includes('localhost') ? `${proto}://${reqHost}` : null)
     || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
     || `http://localhost:${process.env.PORT || 3000}`;
 
@@ -67,7 +113,7 @@ export default async function handler(req, res) {
   let cache = { c: -1, rows: null };
 
   for (let b = cursor; b < cursor + due; b++) {
-    const rows = await getRowsForBatch(base, b, ROWS_PER_HOUR, CHUNK_SIZE, cache);
+    const rows = await getRowsForBatch(base, b, ROWS_PER_HOUR, CHUNK_SIZE, cache, req?.headers);
     if (!rows || rows.length === 0) {
       done = true;
       break;
