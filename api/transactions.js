@@ -2,7 +2,7 @@ import { sb, dbGuard, send, PAGE_SIZES } from './_lib.js';
 
 export default async function handler(req, res) {
     if (!dbGuard(res)) return;
-
+    //test deploy
     // ✅ PERBAIKAN: Parse URL untuk membaca query parameter (pengganti req.query)
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     
