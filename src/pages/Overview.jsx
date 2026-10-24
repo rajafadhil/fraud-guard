@@ -8,7 +8,11 @@ const TICK = { fill: '#94a3b8', fontSize: 11 };
 export default function Overview() {
     const [data, setData] = useState(null);
     const [err, setErr] = useState(null);
-    const load = useCallback(() => api.stats().then(setData).catch((e) => setErr(e.message)), []);
+    const load = useCallback(async () => {
+        try { await fetch('/api/ingest', { method: 'POST' }); } catch { /* abaikan */ }
+        const s = await api.stats();
+        setData(s);
+    }, []);
     useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [load]);
 
     if (err) return <Card title="Error"><p className="text-sm text-rose-500">{err} — sudah set DATABASE_URL di Vercel?</p></Card>;
