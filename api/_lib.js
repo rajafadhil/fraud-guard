@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import rfModel from './model/rf.json';
+import rfModel from './model/rf.json' with { type: 'json' };
 
 export const RF = rfModel;
 export const PAGE_SIZES = [10, 50, 100, 200];
@@ -7,8 +7,8 @@ export const DEFAULT_THRESHOLD = RF.meta?.threshold ?? 0.5463;
 
 export const sb = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
   : null;
 
 export function dbGuard(res) {
