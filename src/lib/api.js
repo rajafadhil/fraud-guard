@@ -1,10 +1,10 @@
-async function fetchJSON(url) {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`${url} -> HTTP ${r.status}`);
-    return r.json();
-}
+import * as streamEngine from './streamEngine.js';
+
 export const api = {
-    stats: () => fetchJSON('/api/stats'),
-    meta: () => fetchJSON('/api/model-meta'),
-    transactions: (p) => fetchJSON(`/api/transactions?${new URLSearchParams(p)}`),
+    stats: () => streamEngine.getStats(),
+    meta: () => Promise.resolve(streamEngine.getModelMeta()),
+    transactions: (p) => streamEngine.getTransactions(p),
+    ingest: () => streamEngine.ingestDueBatches(),
+    advanceHour: () => streamEngine.advanceHour(),
+    reset: () => streamEngine.resetStream(),
 };
